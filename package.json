@@ -1,0 +1,17 @@
+{
+  "name": "ai-plagiarism-assistant",
+  "version": "1.0.0",
+  "description": "AI Plagiarism & Paraphrase Assistant",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "@google/genai": "^1.33.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

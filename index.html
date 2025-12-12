@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Plagiarism & Paraphrase Assistant</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Merriweather:ital,wght@0,300;0,400;0,700;1,300&display=swap" rel="stylesheet">
+  
+  <style>
+    /* --- INLINED CSS FOR RELIABILITY --- */
+    :root {
+      /* Clean Professional Palette */
+      --bg-app: #f3f4f6;       /* Light Grey Background */
+      --bg-sidebar: #ffffff;   /* White Sidebar */
+      --bg-card: #ffffff;      /* White Cards */
+      
+      --primary: #2563eb;      /* Academic Blue */
+      --primary-light: #eff6ff;
+      --text-main: #1f2937;    /* Dark Grey Text */
+      --text-muted: #6b7280;   /* Muted Text */
+      --border: #e5e7eb;       /* Subtle Border */
+      
+      --success: #059669;
+      --warning: #d97706;
+      --error: #dc2626;
+      
+      --sidebar-width: 260px;
+      --radius: 8px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden; /* Prevent body scroll, let main scroll */
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bg-app);
+      color: var(--text-main);
+    }
+
+    /* --- Layout Structure --- */
+    .app-layout {
+      display: flex;
+      height: 100vh; /* Force full viewport height */
+      width: 100vw;
+      overflow: hidden;
+    }
+
+    /* --- Sidebar Styling --- */
+    .sidebar {
+      width: var(--sidebar-width);
+      min-width: var(--sidebar-width); /* Prevent crushing */
+      background: var(--bg-sidebar);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 1.5rem 1rem;
+      height: 100%;
+      overflow-y: auto;
+      z-index: 10;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 2.5rem;
+      padding-left: 0.5rem;
+    }
+
+    .brand-icon {
+      width: 32px;
+      height: 32px;
+      background: var(--primary);
+      color: white;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Merriweather', serif;
+      font-weight: 700;
+      font-size: 1.2rem;
+      flex-shrink: 0;
+    }
+
+    .brand-text h1 {
+      font-size: 1rem;
+      margin: 0;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+    .brand-text p {
+      font-size: 0.7rem;
+      margin: 0;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .nav-header {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+      padding-left: 0.75rem;
+      display: block;
+    }
+
+    .nav-item {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem;
+      background: none;
+      border: 1px solid transparent;
+      border-radius: var(--radius);
+      color: var(--text-main);
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: left;
+      margin-bottom: 0.5rem;
+    }
+
+    .nav-item:hover:not(:disabled) {
+      background: var(--primary-light);
+      color: var(--primary);
+    }
+
+    .nav-item:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      filter: grayscale(1);
+    }
+
+    .nav-item .icon { font-size: 1.1rem; }
+
+    /* Sidebar Loading Spinner */
+    .loader {
+      width: 14px;
+      height: 14px;
+      border: 2px solid #ccc;
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-left: auto;
+      display: none;
+    }
+    .nav-item.loading .loader { display: block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .status-indicator {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding-left: 0.75rem;
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      background-color: var(--success);
+      border-radius: 50%;
+    }
+
+    /* --- Main Content Area --- */
+    .main-content {
+      flex: 1;
+      height: 100%;
+      overflow-y: auto; /* Enable scrolling for main content */
+      padding: 2rem;
+      display: flex;
+      justify-content: center;
+      background-color: var(--bg-app);
+    }
+
+    .content-center {
+      width: 100%;
+      max-width: 1000px; /* Increased max-width for side-by-side layout */
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      padding-bottom: 3rem;
+    }
+
+    /* --- Input Card --- */
+    .input-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    .input-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 1rem;
+    }
+
+    .input-header h2 {
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      margin: 0;
+    }
+
+    .word-count {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .textarea-wrapper {
+      position: relative;
+    }
+
+    textarea {
+      width: 100%;
+      height: 250px;
+      padding: 1rem;
+      padding-right: 3rem; /* Space for clear button */
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-family: 'Inter', sans-serif;
+      font-size: 1rem;
+      line-height: 1.6;
+      resize: vertical;
+      background: #f9fafb;
+      transition: all 0.2s;
+      color: #1f2937;
+    }
+
+    textarea:focus {
+      outline: none;
+      background: #fff;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-light);
+    }
+
+    /* Floating Clear Button */
+    .btn-clear {
+      position: absolute;
+      top: 0.75rem;
+      right: 0.75rem;
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      padding: 0.25rem 0.6rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.2s;
+      z-index: 5;
+    }
+
+    .btn-clear:hover {
+      background: #fee2e2;
+      color: var(--error);
+      border-color: #fecaca;
+    }
+
+    .hidden { display: none !important; }
+
+    .error-banner {
+      background: #fef2f2;
+      color: var(--error);
+      padding: 0.75rem;
+      border-radius: var(--radius);
+      font-size: 0.9rem;
+      margin-top: 1rem;
+    }
+
+    /* --- Results Section --- */
+    .result-section {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      animation: slideUp 0.3s ease-out;
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .result-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .result-header h3 {
+      margin: 0;
+      font-size: 1.1rem;
+      color: var(--text-main);
+    }
+
+    /* Badges */
+    .badge {
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      background: #f3f4f6;
+    }
+    .badge.high { background: #d1fae5; color: var(--success); }
+    .badge.med { background: #fef3c7; color: var(--warning); }
+    .badge.low { background: #fee2e2; color: var(--error); }
+
+    /* Info Cards */
+    .cards-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .info-card {
+      background: #f9fafb;
+      padding: 1rem;
+      border-radius: var(--radius);
+    }
+
+    .info-label {
+      display: block;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    .info-value {
+      margin: 0;
+      font-size: 0.95rem;
+      line-height: 1.5;
+    }
+
+    .grounding-box {
+      background: #f9fafb;
+      padding: 1rem;
+      border-radius: var(--radius);
+      margin-top: 1rem;
+    }
+
+    .url-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .url-list li { margin-bottom: 0.25rem; }
+    .url-list a {
+      color: var(--primary);
+      text-decoration: none;
+      font-size: 0.9rem;
+      word-break: break-all;
+    }
+    .url-list a:hover { text-decoration: underline; }
+
+    /* --- Paraphrase Flow (Layout Updated) --- */
+    .metric-display {
+      text-align: right;
+    }
+    .metric-number {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    .summary-box {
+      margin-bottom: 1.5rem;
+      padding: 1rem;
+      background: #f9fafb;
+      border-radius: var(--radius);
+      border-left: 3px solid var(--primary);
+    }
+
+    .comparison-flow {
+      display: grid;
+      grid-template-columns: 1fr; /* Default mobile stack */
+      gap: 1.5rem;
+    }
+    
+    /* Desktop: Side-by-Side */
+    @media (min-width: 900px) {
+      .comparison-flow {
+        grid-template-columns: 1fr 40px 1fr; /* Original - Arrow - New */
+        align-items: stretch;
+      }
+    }
+
+    .text-block {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      height: 100%;
+    }
+
+    .block-label {
+      background: #f3f4f6;
+      padding: 0.75rem 1rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .success-label {
+      background: #ecfdf5;
+      color: var(--success);
+      border-bottom-color: #a7f3d0;
+    }
+
+    .block-content {
+      padding: 1rem;
+      font-size: 0.95rem;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      background: #fff;
+      flex-grow: 1;
+      border: none;
+      width: 100%;
+      resize: none; /* Disable manual resize in grid */
+    }
+    
+    .academic-block {
+      border-color: #a7f3d0;
+      box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.1);
+    }
+    
+    textarea.block-content:focus {
+      outline: none;
+      background: #fefefe;
+    }
+
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      background: #fafafa;
+    }
+
+    .font-serif {
+      font-family: 'Merriweather', serif;
+      color: var(--text-main);
+    }
+
+    .flow-arrow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      font-size: 1.5rem;
+    }
+    
+    /* Rotate arrow on desktop */
+    @media (min-width: 900px) {
+      .arrow-icon { transform: rotate(-90deg); }
+    }
+
+    @media (max-width: 768px) {
+      .app-layout { flex-direction: column; overflow-y: auto; }
+      .sidebar { width: 100%; min-width: 100%; border-right: none; border-bottom: 1px solid var(--border); height: auto; flex-shrink: 0;}
+      .cards-row { grid-template-columns: 1fr; }
+    }
+  </style>
+<script type="importmap">
+{
+  "imports": {
+    "express": "https://esm.sh/express@^5.2.1",
+    "@google/genai": "https://esm.sh/@google/genai@^1.33.0"
+  }
+}
+</script>
+</head>
+<body>
+  
+  <div class="app-layout">
+    
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sidebar-top">
+        <div class="brand">
+          <div class="brand-icon">¶</div>
+          <div class="brand-text">
+            <h1>Academic</h1>
+            <p>Integrity Assistant</p>
+          </div>
+        </div>
+
+        <nav class="nav-menu">
+          <div class="nav-group">
+            <span class="nav-header">Analysis Tools</span>
+            
+            <button id="btn-source" class="nav-item" disabled>
+              <span class="icon">🔎</span>
+              <span class="label">Source Detector</span>
+              <span class="loader"></span>
+            </button>
+            
+            <button id="btn-paraphrase" class="nav-item" disabled>
+              <span class="icon">✒️</span>
+              <span class="label">Paraphraser</span>
+              <span class="loader"></span>
+            </button>
+          </div>
+        </nav>
+      </div>
+
+      <div class="sidebar-bottom">
+        <div class="status-indicator">
+          <span class="status-dot"></span> System Ready
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+      
+      <div class="content-center">
+        <!-- Input Section -->
+        <section class="input-card">
+          <div class="input-header">
+            <h2>Input Text</h2>
+            <span class="word-count" id="word-count">0 words</span>
+          </div>
+          
+          <div class="textarea-wrapper">
+            <textarea 
+              id="input-text" 
+              placeholder="Paste your text here to begin analysis (100+ words recommended)..." 
+              autofocus
+            ></textarea>
+            
+            <button id="btn-clear" class="btn-clear hidden" title="Clear text">
+              Clear Text
+            </button>
+          </div>
+          
+          <div id="error-msg" class="error-banner hidden"></div>
+        </section>
+
+        <!-- Source Detection Result -->
+        <section id="source-result" class="result-section hidden">
+          <div class="result-header">
+            <h3>Source Analysis</h3>
+            <div class="badge-container">
+               <span id="source-confidence-badge" class="badge">Confidence: --</span>
+            </div>
+          </div>
+          
+          <div class="cards-row">
+            <div class="info-card">
+              <span class="info-label">Likely Source Context</span>
+              <p id="source-summary" class="info-value"></p>
+            </div>
+            <div class="info-card">
+              <span class="info-label">Estimated Author/Style</span>
+              <p id="source-author" class="info-value"></p>
+            </div>
+          </div>
+
+          <div id="grounding-section" class="grounding-box hidden">
+            <span class="info-label">Reference URLs Found</span>
+            <ul id="source-urls" class="url-list"></ul>
+          </div>
+        </section>
+
+        <!-- Paraphrase Result Section (SIDE-BY-SIDE LAYOUT) -->
+        <section id="paraphrase-result" class="result-section hidden">
+          <div class="result-header">
+            <h3>Anti-Plagiarism Result</h3>
+            <div class="metric-display">
+              <span class="metric-label">Semantic Fidelity:</span>
+              <span class="metric-number" id="fidelity-score">0.00</span>
+            </div>
+          </div>
+
+          <div class="summary-box">
+            <span class="info-label">Transformation Strategy</span>
+            <p id="transform-summary" class="info-value"></p>
+          </div>
+
+          <!-- Comparison Grid -->
+          <div class="comparison-flow">
+            
+            <!-- Original (Left/Top) -->
+            <div class="text-block original-block">
+              <div class="block-label">Original Input</div>
+              <div id="original-text-display" class="block-content font-mono"></div>
+            </div>
+            
+            <div class="flow-arrow">
+              <span class="arrow-icon">↓</span>
+            </div>
+
+            <!-- Paraphrased (Right/Bottom) -->
+            <div class="text-block academic-block">
+              <div class="block-label success-label">Paraphrased Output</div>
+              <!-- Editable Textarea -->
+              <textarea id="paraphrased-text-display" class="block-content font-serif" placeholder="Generated text will appear here..."></textarea>
+            </div>
+          </div>
+        </section>
+      </div>
+
+    </main>
+  </div>
+
+  <script>
+    // --- Elements ---
+    const inputText = document.getElementById('input-text');
+    const wordCountDisplay = document.getElementById('word-count');
+    const btnSource = document.getElementById('btn-source');
+    const btnParaphrase = document.getElementById('btn-paraphrase');
+    const btnClear = document.getElementById('btn-clear');
+    const errorMsg = document.getElementById('error-msg');
+    const sourceSection = document.getElementById('source-result');
+    const paraphraseSection = document.getElementById('paraphrase-result');
+
+    // Original labels for restoration
+    const LABELS = {
+      source: 'Source Detector',
+      paraphrase: 'Paraphraser'
+    };
+
+    // --- Logic ---
+    function updateState() {
+      const text = inputText.value.trim();
+      const count = text ? text.split(/\s+/).filter(w => w.length > 0).length : 0;
+      wordCountDisplay.textContent = `${count} words`;
+      
+      const hasText = count > 0;
+      
+      // Update Button State if not currently loading
+      if (!btnSource.classList.contains('loading') && !btnParaphrase.classList.contains('loading')) {
+        if (hasText) {
+          btnSource.disabled = false;
+          btnParaphrase.disabled = false;
+          btnClear.classList.remove('hidden');
+        } else {
+          btnSource.disabled = true;
+          btnParaphrase.disabled = true;
+          btnClear.classList.add('hidden');
+        }
+      }
+    }
+
+    function setLoading(activeBtn, isLoading, loadingText = "Processing...") {
+      const labelSpan = activeBtn.querySelector('.label');
+      
+      if (isLoading) {
+        btnSource.disabled = true;
+        btnParaphrase.disabled = true;
+        activeBtn.classList.add('loading');
+        labelSpan.textContent = loadingText;
+        inputText.disabled = true;
+      } else {
+        activeBtn.classList.remove('loading');
+        // Restore label
+        if (activeBtn.id === 'btn-source') labelSpan.textContent = LABELS.source;
+        if (activeBtn.id === 'btn-paraphrase') labelSpan.textContent = LABELS.paraphrase;
+        
+        inputText.disabled = false;
+        updateState(); // Re-enable based on text
+      }
+    }
+
+    function showError(msg) {
+      errorMsg.textContent = msg;
+      errorMsg.classList.remove('hidden');
+    }
+
+    function clearResults() {
+      errorMsg.classList.add('hidden');
+      sourceSection.classList.add('hidden');
+      paraphraseSection.classList.add('hidden');
+    }
+
+    // --- Handlers ---
+    inputText.addEventListener('input', updateState);
+
+    btnClear.addEventListener('click', () => {
+      inputText.value = '';
+      updateState();
+      clearResults();
+      inputText.focus();
+    });
+
+    btnSource.addEventListener('click', async () => {
+      clearResults();
+      setLoading(btnSource, true, "Scanning...");
+      try {
+        const res = await fetch('/api/detect-source', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: inputText.value })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        // Populate Source UI
+        const confidence = Math.round(data.confidence_score * 100);
+        const badge = document.getElementById('source-confidence-badge');
+        badge.textContent = `Confidence: ${confidence}%`;
+        
+        badge.classList.remove('high', 'med', 'low');
+        if (confidence > 80) badge.classList.add('high');
+        else if (confidence > 50) badge.classList.add('med');
+        else badge.classList.add('low');
+
+        document.getElementById('source-summary').textContent = data.source_summary;
+        document.getElementById('source-author').textContent = data.author_estimate;
+
+        // URLs
+        const urlList = document.getElementById('source-urls');
+        const groundBox = document.getElementById('grounding-section');
+        urlList.innerHTML = '';
+        if (data.grounding_urls && data.grounding_urls.length > 0) {
+          data.grounding_urls.forEach(url => {
+            const li = document.createElement('li');
+            const a = document.createElement('a');
+            a.href = url;
+            a.target = '_blank';
+            a.textContent = new URL(url).hostname;
+            li.appendChild(a);
+            urlList.appendChild(li);
+          });
+          groundBox.classList.remove('hidden');
+        } else {
+          groundBox.classList.add('hidden');
+        }
+
+        sourceSection.classList.remove('hidden');
+        sourceSection.scrollIntoView({ behavior: 'smooth' });
+
+      } catch (e) {
+        showError(e.message || "An error occurred.");
+      } finally {
+        setLoading(btnSource, false);
+      }
+    });
+
+    btnParaphrase.addEventListener('click', async () => {
+      clearResults();
+      setLoading(btnParaphrase, true, "Rewriting...");
+      try {
+        const res = await fetch('/api/paraphrase', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: inputText.value })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+
+        // Populate Paraphrase UI
+        document.getElementById('original-text-display').textContent = data.original_text;
+        // UPDATED: Use .value for textarea
+        document.getElementById('paraphrased-text-display').value = data.paraphrased_text;
+        document.getElementById('fidelity-score').textContent = data.analysis.similarity_score_estimate.toFixed(2);
+        document.getElementById('transform-summary').textContent = data.analysis.transformation_summary;
+
+        paraphraseSection.classList.remove('hidden');
+        paraphraseSection.scrollIntoView({ behavior: 'smooth' });
+
+      } catch (e) {
+        showError(e.message || "An error occurred.");
+      } finally {
+        setLoading(btnParaphrase, false);
+      }
+    });
+
+    // Init
+    updateState();
+  </script>
+</body>
+</html>

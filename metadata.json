@@ -1,0 +1,5 @@
+{
+  "name": "AI Plagiarism & Paraphrase Assistant",
+  "description": "A powerful tool to detect potential sources of text and generate anti-plagiarized paraphrases using semantic-preserving transformations.",
+  "requestFramePermissions": []
+}
